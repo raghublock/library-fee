@@ -1,6 +1,7 @@
 // Using global db and whatsapp from db.js and whatsapp.js
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    await db.initDB();
     setupEventListeners();
     loadDashboard();
 });
@@ -67,7 +68,7 @@ function setupEventListeners() {
     });
 }
 
-function switchTab(tabName) {
+async function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
@@ -80,85 +81,112 @@ function switchTab(tabName) {
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 
     if (tabName === 'students-list') {
-        loadAllStudents();
+        await loadAllStudents();
     } else if (tabName === 'pending-fees') {
-        loadPendingFees();
+        await loadPendingFees();
     } else if (tabName === 'dashboard') {
-        loadDashboard();
+        await loadDashboard();
     }
 }
 
-function loadDashboard() {
-    const students = db.getAllStudents();
-    const pendingStudents = db.getPendingFees();
-    const totalAmount = pendingStudents.reduce((sum, s) => sum + s.feeAmount, 0);
-    const paidCount = students.length - pendingStudents.length;
+async function loadDashboard() {
+    try {
+        const students = await db.getAllStudents();
+        const pendingStudents = await db.getPendingFees();
+        const totalAmount = pendingStudents.reduce((sum, s) => sum + s.feeAmount, 0);
+        const paidCount = students.length - pendingStudents.length;
 
-    document.getElementById('total-students').textContent = students.length;
-    document.getElementById('pending-count').textContent = pendingStudents.length;
-    document.getElementById('total-amount').textContent = '₹' + totalAmount.toLocaleString('en-IN');
-    document.getElementById('paid-count').textContent = paidCount;
+        document.getElementById('total-students').textContent = students.length;
+        document.getElementById('pending-count').textContent = pendingStudents.length;
+        document.getElementById('total-amount').textContent = '₹' + totalAmount.toLocaleString('en-IN');
+        document.getElementById('paid-count').textContent = paidCount;
 
-    loadPendingList();
+        await loadPendingList();
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+        showToast('Error loading dashboard', 'error');
+    }
 }
 
-function loadPendingList() {
-    const pendingStudents = db.getPendingFees();
-    const container = document.getElementById('pending-list');
+async function loadPendingList() {
+    try {
+        const pendingStudents = await db.getPendingFees();
+        const container = document.getElementById('pending-list');
 
-    if (!container) return;
+        if (!container) return;
 
-    if (pendingStudents.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color: #999; padding: 20px;">✅ All fees are paid!</p>';
-        return;
-    }
+        if (pendingStudents.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color: #999; padding: 20px;">✅ All fees are paid!</p>';
+            return;
+        }
 
-    container.innerHTML = pendingStudents.map(student => `
-        <div class="pending-item">
-            <div class="pending-item-info">
-                <p>${student.name}</p>
-                <p>📱 ${student.whatsapp}</p>
-                <p>👤 ${student.fatherName}</p>
+        container.innerHTML = pendingStudents.map(student => `
+            <div class="pending-item">
+                <div class="pending-item-info">
+                    <p>${student.name}</p>
+                    <p>📱 ${student.whatsapp}</p>
+                    <p>👤 ${student.fatherName}</p>
+                </div>
+                <div class="pending-item-right">
+                    <div class="pending-item-amount">₹${student.feeAmount}</div>
+                    <button class="btn btn-warning" onclick="sendWhatsAppReminder(${student.id})">
+                        <i class="fab fa-whatsapp"></i> Send
+                    </button>
+                </div>
             </div>
-            <div class="pending-item-right">
-                <div class="pending-item-amount">₹${student.feeAmount}</div>
-                <button class="btn btn-warning" onclick="sendWhatsAppReminder(${student.id})">
-                    <i class="fab fa-whatsapp"></i> Send
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function loadAllStudents() {
-    const students = db.getAllStudents();
-    const container = document.getElementById('students-container');
-
-    if (students.length === 0) {
-        container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">No students found</p>';
-        return;
+        `).join('');
+    } catch (error) {
+        console.error('Error loading pending list:', error);
     }
-
-    container.innerHTML = students.map(student => createStudentCard(student)).join('');
 }
 
-function loadPendingFees() {
-    const students = db.getPendingFees();
-    const container = document.getElementById('pending-fees-container');
+async function loadAllStudents() {
+    try {
+        const students = await db.getAllStudents();
+        const container = document.getElementById('students-container');
 
-    if (students.length === 0) {
-        container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">✅ No pending fees!</p>';
-        return;
+        if (students.length === 0) {
+            container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">No students found</p>';
+            return;
+        }
+
+        let html = '';
+        for (let student of students) {
+            html += await createStudentCard(student);
+        }
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading students:', error);
+        showToast('Error loading students', 'error');
     }
-
-    container.innerHTML = students.map(student => createStudentCard(student)).join('');
 }
 
-function createStudentCard(student) {
+async function loadPendingFees() {
+    try {
+        const students = await db.getPendingFees();
+        const container = document.getElementById('pending-fees-container');
+
+        if (students.length === 0) {
+            container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">✅ No pending fees!</p>';
+            return;
+        }
+
+        let html = '';
+        for (let student of students) {
+            html += await createStudentCard(student);
+        }
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading pending fees:', error);
+        showToast('Error loading pending fees', 'error');
+    }
+}
+
+async function createStudentCard(student) {
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth() + 1;
     const currentYear = currentDate.getFullYear();
-    const isPaid = db.isFeePaid(student.id, currentMonth, currentYear);
+    const isPaid = await db.isFeePaid(student.id, currentMonth, currentYear);
 
     return `
         <div class="student-card" onclick="showStudentDetail(${student.id})">
@@ -188,172 +216,187 @@ function createStudentCard(student) {
     `;
 }
 
-function showStudentDetail(studentId) {
-    const student = db.getStudent(studentId);
-    if (!student) return;
+async function showStudentDetail(studentId) {
+    try {
+        const student = await db.getStudent(studentId);
+        if (!student) return;
 
-    const modal = document.getElementById('detail-modal');
-    const modalBody = document.getElementById('modal-body');
+        const modal = document.getElementById('detail-modal');
+        const modalBody = document.getElementById('modal-body');
 
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
-    const isPaid = db.isFeePaid(studentId, currentMonth, currentYear);
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1;
+        const currentYear = currentDate.getFullYear();
+        const isPaid = await db.isFeePaid(studentId, currentMonth, currentYear);
 
-    const feeHistory = (student.feeHistory || []).map(f => 
-        `<li>${f.month}/${f.year} - ₹${f.amount}</li>`
-    ).join('') || '<li>No records</li>';
+        const feeHistory = (student.feeHistory || []).map(f => 
+            `<li>${f.month}/${f.year} - ₹${f.amount}</li>`
+        ).join('') || '<li>No records</li>';
 
-    modalBody.innerHTML = `
-        <img src="${student.photo}" alt="${student.name}" class="detail-photo">
-        
-        <div class="detail-info">
-            <h2>${student.name}</h2>
-        </div>
+        modalBody.innerHTML = `
+            <img src="${student.photo}" alt="${student.name}" class="detail-photo">
+            
+            <div class="detail-info">
+                <h2>${student.name}</h2>
+            </div>
 
-        <div class="detail-info">
-            <label>Father's Name</label>
-            <p>${student.fatherName}</p>
-        </div>
+            <div class="detail-info">
+                <label>Father's Name</label>
+                <p>${student.fatherName}</p>
+            </div>
 
-        <div class="detail-info">
-            <label>Mobile</label>
-            <p>${student.mobile}</p>
-        </div>
+            <div class="detail-info">
+                <label>Mobile</label>
+                <p>${student.mobile}</p>
+            </div>
 
-        <div class="detail-info">
-            <label>WhatsApp</label>
-            <p>${student.whatsapp}</p>
-        </div>
+            <div class="detail-info">
+                <label>WhatsApp</label>
+                <p>${student.whatsapp}</p>
+            </div>
 
-        <div class="detail-info">
-            <label>Email</label>
-            <p>${student.email || 'Not provided'}</p>
-        </div>
+            <div class="detail-info">
+                <label>Email</label>
+                <p>${student.email || 'Not provided'}</p>
+            </div>
 
-        <div class="detail-info">
-            <label>Address</label>
-            <p>${student.address || 'Not provided'}</p>
-        </div>
+            <div class="detail-info">
+                <label>Address</label>
+                <p>${student.address || 'Not provided'}</p>
+            </div>
 
-        <div class="detail-info">
-            <label>Monthly Fee</label>
-            <p>₹${student.feeAmount}</p>
-        </div>
+            <div class="detail-info">
+                <label>Monthly Fee</label>
+                <p>₹${student.feeAmount}</p>
+            </div>
 
-        <div class="detail-info">
-            <label>Joined</label>
-            <p>${new Date(student.joiningDate).toLocaleDateString()}</p>
-        </div>
+            <div class="detail-info">
+                <label>Joined</label>
+                <p>${new Date(student.joiningDate).toLocaleDateString()}</p>
+            </div>
 
-        <div class="detail-info">
-            <label>Fee Status</label>
-            <p><span class="status-badge ${isPaid ? 'status-paid' : 'status-pending'}">
-                ${isPaid ? '✅ Paid' : '❌ Pending'}
-            </span></p>
-        </div>
+            <div class="detail-info">
+                <label>Fee Status</label>
+                <p><span class="status-badge ${isPaid ? 'status-paid' : 'status-pending'}">
+                    ${isPaid ? '✅ Paid' : '❌ Pending'}
+                </span></p>
+            </div>
 
-        <div class="detail-info">
-            <label>Recent Payments</label>
-            <ul>${feeHistory}</ul>
-        </div>
+            <div class="detail-info">
+                <label>Recent Payments</label>
+                <ul>${feeHistory}</ul>
+            </div>
 
-        <div class="detail-actions">
-            <button class="btn btn-success" onclick="markFeePaid(${studentId})">Mark Paid</button>
-            <button class="btn btn-warning" onclick="sendWhatsAppReminder(${studentId})">WhatsApp</button>
-            <button class="btn btn-danger" onclick="deleteStudent(${studentId})">Delete</button>
-        </div>
-    `;
-
-    modal.classList.add('show');
-}
-
-function showFeeModal(studentId, event) {
-    if (event) event.stopPropagation();
-
-    const student = db.getStudent(studentId);
-    if (!student) return;
-
-    const modal = document.getElementById('fee-modal');
-    const modalBody = document.getElementById('fee-modal-body');
-    
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    // Generate last 12 months
-    let monthsHtml = '';
-    for (let i = 11; i >= 0; i--) {
-        let month = currentDate.getMonth() - i;
-        let year = currentYear;
-        if (month < 0) {
-            month += 12;
-            year--;
-        }
-        month++; // Convert to 1-based month
-
-        const isPaid = db.isFeePaid(studentId, month, year);
-        const monthName = months[month - 1];
-        
-        monthsHtml += `
-            <div class="month-box ${isPaid ? 'paid' : ''}" onclick="toggleFeePayment(${studentId}, ${month}, ${year}, event)">
-                <div class="month-name">${monthName}</div>
-                <div class="month-year">${year}</div>
-                ${isPaid ? '<div class="month-status">✓</div>' : ''}
+            <div class="detail-actions">
+                <button class="btn btn-success" onclick="markFeePaid(${studentId})">Mark Paid</button>
+                <button class="btn btn-warning" onclick="sendWhatsAppReminder(${studentId})">WhatsApp</button>
+                <button class="btn btn-danger" onclick="deleteStudent(${studentId})">Delete</button>
             </div>
         `;
+
+        modal.classList.add('show');
+    } catch (error) {
+        console.error('Error showing student detail:', error);
+        showToast('Error loading student details', 'error');
     }
-
-    modalBody.innerHTML = `
-        <h2 style="margin-bottom: 24px;">
-            <i class="fas fa-calendar-alt"></i> Fee Tracker - ${student.name}
-        </h2>
-
-        <div class="fee-tracker">
-            <h3>Monthly Fee Status (Last 12 Months)</h3>
-            <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
-                Click on a month to mark/unmark fee as paid
-            </p>
-            
-            <div class="month-grid">
-                ${monthsHtml}
-            </div>
-
-            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-top: 20px;">
-                <p style="margin: 0; font-size: 14px; color: #666;">
-                    <i class="fas fa-info-circle" style="color: var(--primary); margin-right: 8px;"></i>
-                    Monthly Fee: <strong>₹${student.feeAmount}</strong>
-                </p>
-                <p style="margin: 8px 0 0 0; font-size: 14px; color: #666;">
-                    Total Paid: <strong>₹${(student.feeHistory || []).length * student.feeAmount}</strong>
-                </p>
-            </div>
-
-            <button class="btn btn-warning add-fee-btn" onclick="sendWhatsAppReminder(${studentId})">
-                <i class="fab fa-whatsapp"></i> Send Reminder
-            </button>
-        </div>
-    `;
-
-    modal.classList.add('show');
 }
 
-function toggleFeePayment(studentId, month, year, event) {
+async function showFeeModal(studentId, event) {
+    if (event) event.stopPropagation();
+
+    try {
+        const student = await db.getStudent(studentId);
+        if (!student) return;
+
+        const modal = document.getElementById('fee-modal');
+        const modalBody = document.getElementById('fee-modal-body');
+        
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        // Generate last 12 months
+        let monthsHtml = '';
+        for (let i = 11; i >= 0; i--) {
+            let month = currentDate.getMonth() - i;
+            let year = currentYear;
+            if (month < 0) {
+                month += 12;
+                year--;
+            }
+            month++; // Convert to 1-based month
+
+            const isPaid = await db.isFeePaid(studentId, month, year);
+            const monthName = months[month - 1];
+            
+            monthsHtml += `
+                <div class="month-box ${isPaid ? 'paid' : ''}" onclick="toggleFeePayment(${studentId}, ${month}, ${year}, event)">
+                    <div class="month-name">${monthName}</div>
+                    <div class="month-year">${year}</div>
+                    ${isPaid ? '<div class="month-status">✓</div>' : ''}
+                </div>
+            `;
+        }
+
+        modalBody.innerHTML = `
+            <h2 style="margin-bottom: 24px;">
+                <i class="fas fa-calendar-alt"></i> Fee Tracker - ${student.name}
+            </h2>
+
+            <div class="fee-tracker">
+                <h3>Monthly Fee Status (Last 12 Months)</h3>
+                <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
+                    Click on a month to mark/unmark fee as paid
+                </p>
+                
+                <div class="month-grid">
+                    ${monthsHtml}
+                </div>
+
+                <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-top: 20px;">
+                    <p style="margin: 0; font-size: 14px; color: #666;">
+                        <i class="fas fa-info-circle" style="color: var(--primary); margin-right: 8px;"></i>
+                        Monthly Fee: <strong>₹${student.feeAmount}</strong>
+                    </p>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; color: #666;">
+                        Total Paid: <strong>₹${(student.feeHistory || []).length * student.feeAmount}</strong>
+                    </p>
+                </div>
+
+                <button class="btn btn-warning add-fee-btn" onclick="sendWhatsAppReminder(${studentId})">
+                    <i class="fab fa-whatsapp"></i> Send Reminder
+                </button>
+            </div>
+        `;
+
+        modal.classList.add('show');
+    } catch (error) {
+        console.error('Error showing fee modal:', error);
+        showToast('Error loading fee tracker', 'error');
+    }
+}
+
+async function toggleFeePayment(studentId, month, year, event) {
     event.stopPropagation();
     
-    const isPaid = db.isFeePaid(studentId, month, year);
-    
-    if (isPaid) {
-        db.markFeeAsUnpaid(studentId, month, year);
-        showToast('Fee marked as unpaid', 'info');
-    } else {
-        db.markFeeAsPaid(studentId, month, year);
-        showToast('Fee marked as paid', 'success');
+    try {
+        const isPaid = await db.isFeePaid(studentId, month, year);
+        
+        if (isPaid) {
+            await db.markFeeAsUnpaid(studentId, month, year);
+            showToast('Fee marked as unpaid', 'info');
+        } else {
+            await db.markFeeAsPaid(studentId, month, year);
+            showToast('Fee marked as paid', 'success');
+        }
+        
+        // Refresh fee modal
+        await showFeeModal(studentId, null);
+        await loadDashboard();
+    } catch (error) {
+        console.error('Error toggling fee payment:', error);
+        showToast('Error updating fee', 'error');
     }
-    
-    // Refresh fee modal
-    showFeeModal(studentId, null);
-    loadDashboard();
 }
 
 function closeModal() {
@@ -362,7 +405,7 @@ function closeModal() {
     });
 }
 
-function handleAddStudent(e) {
+async function handleAddStudent(e) {
     e.preventDefault();
 
     const photoInput = document.getElementById('photo');
@@ -373,27 +416,32 @@ function handleAddStudent(e) {
 
     const reader = new FileReader();
 
-    reader.onload = function(event) {
-        const studentData = {
-            name: document.getElementById('name').value,
-            fatherName: document.getElementById('father-name').value,
-            mobile: document.getElementById('mobile').value,
-            whatsapp: document.getElementById('whatsapp').value,
-            email: document.getElementById('email').value || '',
-            feeAmount: parseInt(document.getElementById('fee-amount').value),
-            photo: event.target.result,
-            address: document.getElementById('address').value || '',
-            joiningDate: document.getElementById('joining-date').value
-        };
+    reader.onload = async function(event) {
+        try {
+            const studentData = {
+                name: document.getElementById('name').value,
+                fatherName: document.getElementById('father-name').value,
+                mobile: document.getElementById('mobile').value,
+                whatsapp: document.getElementById('whatsapp').value,
+                email: document.getElementById('email').value || '',
+                feeAmount: parseInt(document.getElementById('fee-amount').value),
+                photo: event.target.result,
+                address: document.getElementById('address').value || '',
+                joiningDate: document.getElementById('joining-date').value
+            };
 
-        db.addStudent(studentData);
-        showToast('✅ Student added successfully!', 'success');
-        document.getElementById('student-form').reset();
-        document.getElementById('photo-preview').classList.remove('show');
-        setTimeout(() => {
-            switchTab('students-list');
-            loadDashboard();
-        }, 800);
+            await db.addStudent(studentData);
+            showToast('✅ Student added successfully!', 'success');
+            document.getElementById('student-form').reset();
+            document.getElementById('photo-preview').classList.remove('show');
+            setTimeout(async () => {
+                await switchTab('students-list');
+                await loadDashboard();
+            }, 800);
+        } catch (error) {
+            console.error('Error adding student:', error);
+            showToast('Error adding student', 'error');
+        }
     };
 
     reader.readAsDataURL(photoInput.files[0]);
@@ -412,53 +460,76 @@ function previewPhoto(e) {
     }
 }
 
-function markFeePaid(studentId, event) {
+async function markFeePaid(studentId, event) {
     if (event) event.stopPropagation();
 
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
+    try {
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1;
+        const currentYear = currentDate.getFullYear();
 
-    db.markFeeAsPaid(studentId, currentMonth, currentYear);
-    const student = db.getStudent(studentId);
+        await db.markFeeAsPaid(studentId, currentMonth, currentYear);
+        const student = await db.getStudent(studentId);
 
-    showToast(`✅ ${student.name}'s fee marked as paid!`, 'success');
-    loadDashboard();
-    loadAllStudents();
-    closeModal();
+        showToast(`✅ ${student.name}'s fee marked as paid!`, 'success');
+        await loadDashboard();
+        await loadAllStudents();
+        closeModal();
+    } catch (error) {
+        console.error('Error marking fee as paid:', error);
+        showToast('Error updating fee', 'error');
+    }
 }
 
 function sendWhatsAppReminder(studentId, event) {
     if (event) event.stopPropagation();
 
-    const student = db.getStudent(studentId);
-    if (!student) return;
+    db.getStudent(studentId).then(student => {
+        if (!student) return;
 
-    const link = whatsapp.sendFeePaidReminder(student);
-    whatsapp.openWhatsApp(link);
+        const link = whatsapp.sendFeePaidReminder(student);
+        whatsapp.openWhatsApp(link);
+    }).catch(error => {
+        console.error('Error sending WhatsApp reminder:', error);
+        showToast('Error sending message', 'error');
+    });
 }
 
-function deleteStudent(studentId) {
+async function deleteStudent(studentId) {
     if (confirm('क्या आप इस छात्र को हटाना चाहते हैं?')) {
-        db.deleteStudent(studentId);
-        showToast('Student deleted!', 'success');
-        closeModal();
-        loadAllStudents();
-        loadDashboard();
+        try {
+            await db.deleteStudent(studentId);
+            showToast('Student deleted!', 'success');
+            closeModal();
+            await loadAllStudents();
+            await loadDashboard();
+        } catch (error) {
+            console.error('Error deleting student:', error);
+            showToast('Error deleting student', 'error');
+        }
     }
 }
 
-function handleSearch(e) {
-    const query = e.target.value;
-    const students = query ? db.searchStudents(query) : db.getAllStudents();
-    const container = document.getElementById('students-container');
+async function handleSearch(e) {
+    try {
+        const query = e.target.value;
+        const students = query ? await db.searchStudents(query) : await db.getAllStudents();
+        const container = document.getElementById('students-container');
 
-    if (students.length === 0) {
-        container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">No results found</p>';
-        return;
+        if (students.length === 0) {
+            container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">No results found</p>';
+            return;
+        }
+
+        let html = '';
+        for (let student of students) {
+            html += await createStudentCard(student);
+        }
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error searching students:', error);
+        showToast('Error searching', 'error');
     }
-
-    container.innerHTML = students.map(student => createStudentCard(student)).join('');
 }
 
 function showToast(message, type = 'info') {
