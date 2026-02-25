@@ -89,6 +89,62 @@
                         <h3><i class="fas fa-bell"></i> Students with Pending Fees</h3>
                         <div id="pending-list"></div>
                     </div>
+
+                    <!-- Backup & Recovery Section -->
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: var(--border-radius); margin-top: 30px; color: white;">
+                        <h2 style="margin-top: 0; color: white;">
+                            <i class="fas fa-shield-alt"></i> Backup & Recovery
+                        </h2>
+                        <p style="margin-bottom: 20px; opacity: 0.9;">
+                            Keep your data safe with regular backups to local storage or Telegram
+                        </p>
+
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                            <h3 style="margin-top: 0; color: white;">
+                                <i class="fas fa-database"></i> Local Storage Backup
+                            </h3>
+                            <p style="opacity: 0.9; margin-bottom: 16px;">
+                                Download your data as CSV or JSON file to your device
+                            </p>
+                            
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <button class="btn btn-success" onclick="backup.exportToCSV()">
+                                    <i class="fas fa-file-csv"></i> Export to Excel (CSV)
+                                </button>
+                                <button class="btn btn-success" onclick="backup.exportToJSON()">
+                                    <i class="fas fa-database"></i> Full Backup (JSON)
+                                </button>
+                                <button class="btn btn-success" onclick="document.getElementById('import-file').click()">
+                                    <i class="fas fa-upload"></i> Restore Backup
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px;">
+                            <h3 style="margin-top: 0; color: white;">
+                                <i class="fab fa-telegram"></i> Telegram Backup
+                            </h3>
+                            <p style="opacity: 0.9; margin-bottom: 16px;">
+                                Send backup to your Telegram account automatically
+                            </p>
+
+                            <div id="telegram-status" style="background: rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
+                                <i class="fas fa-info-circle"></i> <span id="telegram-info">Not configured</span>
+                            </div>
+
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <button class="btn btn-warning" onclick="telegramBackup.setupTelegram()">
+                                    <i class="fas fa-cog"></i> Configure Telegram
+                                </button>
+                                <button class="btn btn-warning" onclick="telegramBackup.sendBackupToTelegram()">
+                                    <i class="fas fa-paper-plane"></i> Send Backup Now
+                                </button>
+                                <button class="btn btn-danger" onclick="telegramBackup.clearTelegramSettings()">
+                                    <i class="fas fa-trash"></i> Clear Settings
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Add Student Tab -->
@@ -155,7 +211,7 @@
                 <section id="students-list" class="tab-content">
                     <h2>All Students</h2>
                     <div class="search-bar-wrapper">
-                        <input type="text" id="search-input" placeholder="Search by name...">
+                        <input type="text" id="search-input" placeholder="Search by name or mobile...">
                     </div>
                     <div id="students-container" class="students-grid"></div>
                 </section>
@@ -185,67 +241,46 @@
         </div>
     </div>
 
-    <!-- Toast -->
+    <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
+    <!-- Hidden file input for restore -->
+    <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleFileImport(event)">
+
+    <!-- Scripts -->
     <script src="js/db.js"></script>
     <script src="js/whatsapp.js"></script>
+    <script src="js/backup.js"></script>
+    <script src="js/telegram-backup.js"></script>
     <script src="js/app.js"></script>
+
+    <script>
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (file) {
+                backup.importFromJSON(file);
+                event.target.value = ''; // Reset
+            }
+        }
+
+        // Check Telegram status on load
+        function checkTelegramStatus() {
+            const botToken = localStorage.getItem('telegramBotToken');
+            const chatId = localStorage.getItem('telegramChatId');
+            const statusElement = document.getElementById('telegram-info');
+            
+            if (botToken && chatId) {
+                statusElement.innerHTML = '✅ Telegram is configured and ready to use';
+                statusElement.parentElement.style.background = 'rgba(81, 207, 102, 0.2)';
+            } else {
+                statusElement.innerHTML = '⚠️ Click "Configure Telegram" to setup backup';
+            }
+        }
+
+        // Page load पर check करो
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkTelegramStatus, 1500);
+        });
+    </script>
 </body>
-
 </html>
-<!-- Dashboard Tab के अंदर add करो -->
-<div style="display: flex; gap: 12px; margin-top: 20px; margin-bottom: 30px;">
-    <button class="btn btn-info" onclick="backup.exportToCSV()">
-        <i class="fas fa-download"></i> Export to Excel
-    </button>
-    <button class="btn btn-info" onclick="backup.exportToJSON()">
-        <i class="fas fa-cloud-download-alt"></i> Backup Data
-    </button>
-    <button class="btn btn-info" onclick="document.getElementById('import-file').click()">
-        <i class="fas fa-cloud-upload-alt"></i> Restore Backup
-    </button>
-</div>
-
-<!-- Hidden file input -->
-<input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleFileImport(event)">
-
-<!-- Script -->
-<script>
-function handleFileImport(event) {
-    const file = event.target.files[0];
-    if (file) {
-        backup.importFromJSON(file);
-    }
-}
-</script>
-<div style="background: #e8f4f8; padding: 20px; border-radius: 12px; margin-top: 30px;">
-    <h3 style="margin-top: 0;">📦 Backup & Export</h3>
-    <p style="color: #666; margin-bottom: 16px;">
-        Regularly backup your data to avoid data loss
-    </p>
-    
-    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <button class="btn btn-info" onclick="backup.exportToCSV()">
-            <i class="fas fa-file-csv"></i> Export to Excel
-        </button>
-        <button class="btn btn-info" onclick="backup.exportToJSON()">
-            <i class="fas fa-database"></i> Create Backup
-        </button>
-        <button class="btn btn-info" onclick="document.getElementById('import-file').click()">
-            <i class="fas fa-upload"></i> Restore Backup
-        </button>
-    </div>
-    
-    <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleFileImport(event)">
-</div>
-
-<script>
-function handleFileImport(event) {
-    const file = event.target.files[0];
-    if (file) {
-        backup.importFromJSON(file);
-        event.target.value = ''; // Reset input
-    }
-}
-</script>
