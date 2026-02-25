@@ -219,3 +219,33 @@ function handleFileImport(event) {
     }
 }
 </script>
+<div style="background: #e8f4f8; padding: 20px; border-radius: 12px; margin-top: 30px;">
+    <h3 style="margin-top: 0;">📦 Backup & Export</h3>
+    <p style="color: #666; margin-bottom: 16px;">
+        Regularly backup your data to avoid data loss
+    </p>
+    
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <button class="btn btn-info" onclick="backup.exportToCSV()">
+            <i class="fas fa-file-csv"></i> Export to Excel
+        </button>
+        <button class="btn btn-info" onclick="backup.exportToJSON()">
+            <i class="fas fa-database"></i> Create Backup
+        </button>
+        <button class="btn btn-info" onclick="document.getElementById('import-file').click()">
+            <i class="fas fa-upload"></i> Restore Backup
+        </button>
+    </div>
+    
+    <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleFileImport(event)">
+</div>
+
+<script>
+function handleFileImport(event) {
+    const file = event.target.files[0];
+    if (file) {
+        backup.importFromJSON(file);
+        event.target.value = ''; // Reset input
+    }
+}
+</script>
