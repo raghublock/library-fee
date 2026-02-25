@@ -1,111 +1,269 @@
 class StudentDatabase {
     constructor() {
-        this.storageKey = 'library_students';
-        this.initializeDB();
+        this.dbName = 'LibraryFeeDB';
+        this.storeName = 'students';
+        this.version = 1;
+        this.db = null;
+        this.initDB();
     }
 
-    initializeDB() {
-        if (!localStorage.getItem(this.storageKey)) {
-            localStorage.setItem(this.storageKey, JSON.stringify([]));
-        }
+    initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.version);
+
+            request.onerror = () => {
+                console.error('Database failed to open');
+                reject(request.error);
+            };
+
+            request.onsuccess = () => {
+                this.db = request.result;
+                console.log('Database opened successfully');
+                resolve(this.db);
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'id' });
+                }
+            };
+        });
     }
 
     addStudent(studentData) {
-        const students = this.getAllStudents();
-        const newStudent = {
-            id: Date.now(),
-            ...studentData,
-            createdAt: new Date().toISOString(),
-            feeHistory: []
-        };
-        students.push(newStudent);
-        localStorage.setItem(this.storageKey, JSON.stringify(students));
-        return newStudent;
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject('Database not initialized');
+                return;
+            }
+
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const objectStore = transaction.objectStore(this.storeName);
+
+            const newStudent = {
+                id: Date.now(),
+                ...studentData,
+                createdAt: new Date().toISOString(),
+                feeHistory: []
+            };
+
+            const request = objectStore.add(newStudent);
+
+            request.onsuccess = () => {
+                console.log('Student added successfully');
+                resolve(newStudent);
+            };
+
+            request.onerror = () => {
+                console.error('Error adding student:', request.error);
+                reject(request.error);
+            };
+        });
     }
 
     getAllStudents() {
-        return JSON.parse(localStorage.getItem(this.storageKey)) || [];
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject('Database not initialized');
+                return;
+            }
+
+            const transaction = this.db.transaction([this.storeName], 'readonly');
+            const objectStore = transaction.objectStore(this.storeName);
+            const request = objectStore.getAll();
+
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+
+            request.onerror = () => {
+                console.error('Error getting students:', request.error);
+                reject(request.error);
+            };
+        });
     }
 
     getStudent(id) {
-        const students = this.getAllStudents();
-        return students.find(s => s.id === id);
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject('Database not initialized');
+                return;
+            }
+
+            const transaction = this.db.transaction([this.storeName], 'readonly');
+            const objectStore = transaction.objectStore(this.storeName);
+            const request = objectStore.get(id);
+
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+
+            request.onerror = () => {
+                console.error('Error getting student:', request.error);
+                reject(request.error);
+            };
+        });
     }
 
     updateStudent(id, updates) {
-        const students = this.getAllStudents();
-        const index = students.findIndex(s => s.id === id);
-        if (index !== -1) {
-            students[index] = { ...students[index], ...updates };
-            localStorage.setItem(this.storageKey, JSON.stringify(students));
-            return students[index];
-        }
-        return null;
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject('Database not initialized');
+                return;
+            }
+
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const objectStore = transaction.objectStore(this.storeName);
+
+            const getRequest = objectStore.get(id);
+
+            getRequest.onsuccess = () => {
+                const student = getRequest.result;
+                if (student) {
+                    const updatedStudent = { ...student, ...updates };
+                    const putRequest = objectStore.put(updatedStudent);
+
+                    putRequest.onsuccess = () => {
+                        console.log('Student updated successfully');
+                        resolve(updatedStudent);
+                    };
+
+                    putRequest.onerror = () => {
+                        reject(putRequest.error);
+                    };
+                } else {
+                    reject('Student not found');
+                }
+            };
+
+            getRequest.onerror = () => {
+                reject(getRequest.error);
+            };
+        });
     }
 
     deleteStudent(id) {
-        const students = this.getAllStudents();
-        const filtered = students.filter(s => s.id !== id);
-        localStorage.setItem(this.storageKey, JSON.stringify(filtered));
-        return true;
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject('Database not initialized');
+                return;
+            }
+
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const objectStore = transaction.objectStore(this.storeName);
+            const request = objectStore.delete(id);
+
+            request.onsuccess = () => {
+                console.log('Student deleted successfully');
+                resolve(true);
+            };
+
+            request.onerror = () => {
+                reject(request.error);
+            };
+        });
     }
 
     markFeeAsPaid(studentId, month, year) {
-        const student = this.getStudent(studentId);
-        if (student) {
-            if (!student.feeHistory) student.feeHistory = [];
-            
-            const alreadyPaid = student.feeHistory.some(f => f.month === month && f.year === year);
-            if (!alreadyPaid) {
-                student.feeHistory.push({
-                    month,
-                    year,
-                    amount: student.feeAmount,
-                    paidAt: new Date().toISOString()
-                });
-                this.updateStudent(studentId, student);
-                return true;
+        return new Promise(async (resolve, reject) => {
+            try {
+                const student = await this.getStudent(studentId);
+                if (student) {
+                    if (!student.feeHistory) student.feeHistory = [];
+
+                    const alreadyPaid = student.feeHistory.some(f => f.month === month && f.year === year);
+                    if (!alreadyPaid) {
+                        student.feeHistory.push({
+                            month,
+                            year,
+                            amount: student.feeAmount,
+                            paidAt: new Date().toISOString()
+                        });
+                        await this.updateStudent(studentId, student);
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                } else {
+                    reject('Student not found');
+                }
+            } catch (error) {
+                reject(error);
             }
-        }
-        return false;
+        });
     }
 
     markFeeAsUnpaid(studentId, month, year) {
-        const student = this.getStudent(studentId);
-        if (student && student.feeHistory) {
-            student.feeHistory = student.feeHistory.filter(f => !(f.month === month && f.year === year));
-            this.updateStudent(studentId, student);
-            return true;
-        }
-        return false;
+        return new Promise(async (resolve, reject) => {
+            try {
+                const student = await this.getStudent(studentId);
+                if (student && student.feeHistory) {
+                    student.feeHistory = student.feeHistory.filter(f => !(f.month === month && f.year === year));
+                    await this.updateStudent(studentId, student);
+                    resolve(true);
+                } else {
+                    reject('Student not found');
+                }
+            } catch (error) {
+                reject(error);
+            }
+        });
     }
 
     isFeePaid(studentId, month, year) {
-        const student = this.getStudent(studentId);
-        if (student && student.feeHistory) {
-            return student.feeHistory.some(f => f.month === month && f.year === year);
-        }
-        return false;
+        return new Promise(async (resolve, reject) => {
+            try {
+                const student = await this.getStudent(studentId);
+                if (student && student.feeHistory) {
+                    const paid = student.feeHistory.some(f => f.month === month && f.year === year);
+                    resolve(paid);
+                } else {
+                    resolve(false);
+                }
+            } catch (error) {
+                reject(error);
+            }
+        });
     }
 
     getPendingFees() {
-        const currentDate = new Date();
-        const currentMonth = currentDate.getMonth() + 1;
-        const currentYear = currentDate.getFullYear();
+        return new Promise(async (resolve, reject) => {
+            try {
+                const students = await this.getAllStudents();
+                const currentDate = new Date();
+                const currentMonth = currentDate.getMonth() + 1;
+                const currentYear = currentDate.getFullYear();
 
-        return this.getAllStudents().filter(student => {
-            return !this.isFeePaid(student.id, currentMonth, currentYear);
+                const pending = [];
+                for (let student of students) {
+                    const isPaid = await this.isFeePaid(student.id, currentMonth, currentYear);
+                    if (!isPaid) {
+                        pending.push(student);
+                    }
+                }
+                resolve(pending);
+            } catch (error) {
+                reject(error);
+            }
         });
     }
 
     searchStudents(query) {
-        const students = this.getAllStudents();
-        return students.filter(s =>
-            s.name.toLowerCase().includes(query.toLowerCase()) ||
-            s.mobile.includes(query) ||
-            s.whatsapp.includes(query) ||
-            s.fatherName.toLowerCase().includes(query.toLowerCase())
-        );
+        return new Promise(async (resolve, reject) => {
+            try {
+                const students = await this.getAllStudents();
+                const filtered = students.filter(s =>
+                    s.name.toLowerCase().includes(query.toLowerCase()) ||
+                    s.mobile.includes(query) ||
+                    s.whatsapp.includes(query) ||
+                    s.fatherName.toLowerCase().includes(query.toLowerCase())
+                );
+                resolve(filtered);
+            } catch (error) {
+                reject(error);
+            }
+        });
     }
 
     getMonthsArray() {
@@ -114,11 +272,18 @@ class StudentDatabase {
     }
 
     getStudentFeeHistory(studentId) {
-        const student = this.getStudent(studentId);
-        if (student) {
-            return student.feeHistory || [];
-        }
-        return [];
+        return new Promise(async (resolve, reject) => {
+            try {
+                const student = await this.getStudent(studentId);
+                if (student) {
+                    resolve(student.feeHistory || []);
+                } else {
+                    resolve([]);
+                }
+            } catch (error) {
+                reject(error);
+            }
+        });
     }
 }
 
