@@ -9,29 +9,28 @@ class BackupManager {
             const students = await db.getAllStudents();
             
             if (students.length === 0) {
-                alert('No students to export');
+                showToast('❌ No students to export', 'error');
                 return;
             }
 
-            let csvContent = 'data:text/csv;charset=utf-8,';
-            
-            // Header row
-            csvContent += 'Name,Father Name,Mobile,WhatsApp,Email,Fee Amount,Address,Joined Date,Total Paid,Pending Fee\n';
+            let csvContent = 'Name,Father Name,Mobile,WhatsApp,Email,Monthly Fee,Address,Joined Date,Total Paid Fees,Pending This Month\n';
 
             // Data rows
             for (let student of students) {
                 const totalPaid = (student.feeHistory || []).length * student.feeAmount;
-                const isPaid = await db.isFeePaid(student.id, new Date().getMonth() + 1, new Date().getFullYear());
-                const pendingFee = isPaid ? 0 : student.feeAmount;
+                const currentMonth = new Date().getMonth() + 1;
+                const currentYear = new Date().getFullYear();
+                const isPaid = await db.isFeePaid(student.id, currentMonth, currentYear);
+                const pendingFee = isPaid ? 'PAID ✓' : 'PENDING ✗';
 
                 const row = [
-                    this.escapeCSV(student.name),
-                    this.escapeCSV(student.fatherName),
+                    `"${student.name}"`,
+                    `"${student.fatherName}"`,
                     student.mobile,
                     student.whatsapp,
-                    this.escapeCSV(student.email || ''),
+                    `"${student.email || 'N/A'}"`,
                     student.feeAmount,
-                    this.escapeCSV(student.address || ''),
+                    `"${student.address || 'N/A'}"`,
                     student.joiningDate,
                     totalPaid,
                     pendingFee
@@ -41,104 +40,93 @@ class BackupManager {
             }
 
             // Download करो
-            this.downloadCSV(csvContent, 'library-students.csv');
-            showToast('✅ Data exported successfully!', 'success');
+            this.downloadCSV(csvContent, `library-students-${new Date().getTime()}.csv`);
+            showToast('✅ Data exported to CSV successfully!', 'success');
 
         } catch (error) {
             console.error('Error exporting to CSV:', error);
-            showToast('Error exporting data', 'error');
+            showToast('❌ Error exporting CSV: ' + error.message, 'error');
         }
-    }
-
-    escapeCSV(value) {
-        if (value === null || value === undefined) return '';
-        const text = String(value);
-        if (text.includes(',') || text.includes('"') || text.includes('\n')) {
-            return `"${text.replace(/"/g, '""')}"`;
-        }
-        return text;
     }
 
     downloadCSV(csvContent, filename) {
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const element = document.createElement('a');
+        element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent));
+        element.setAttribute('download', filename);
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
     }
 
-    // JSON में export करो (photos के साथ)
+    // JSON में Full Backup करो (सब कुछ के साथ)
     async exportToJSON() {
         try {
             const students = await db.getAllStudents();
             
             if (students.length === 0) {
-                alert('No students to export');
+                showToast('❌ No data to backup', 'error');
                 return;
             }
 
-            const data = {
+            const backupData = {
+                backupType: 'LOCAL_STORAGE_BACKUP',
                 exportDate: new Date().toISOString(),
                 totalStudents: students.length,
                 students: students
             };
 
-            const jsonString = JSON.stringify(data, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+            const jsonString = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
             const link = document.createElement('a');
-            link.href = url;
-            link.download = `library-backup-${new Date().getTime()}.json`;
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `library-backup-${Date.now()}.json`);
+            link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URL.revokeObjectURL(url);
 
-            showToast('✅ Backup created successfully!', 'success');
+            showToast('✅ Full backup created successfully!', 'success');
 
         } catch (error) {
             console.error('Error exporting to JSON:', error);
-            showToast('Error creating backup', 'error');
+            showToast('❌ Error creating backup: ' + error.message, 'error');
         }
     }
 
-    // JSON से import करो
+    // JSON से Import करो
     async importFromJSON(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
+        try {
+            const text = await file.text();
+            const backupData = JSON.parse(text);
 
-            reader.onload = async (event) => {
+            if (!backupData.students || !Array.isArray(backupData.students)) {
+                throw new Error('Invalid backup file format');
+            }
+
+            let importedCount = 0;
+            
+            for (let student of backupData.students) {
                 try {
-                    const data = JSON.parse(event.target.result);
-                    
-                    if (!data.students || !Array.isArray(data.students)) {
-                        throw new Error('Invalid backup file format');
-                    }
-
-                    // Import करो
-                    for (let student of data.students) {
-                        await db.addStudent(student);
-                    }
-
-                    showToast(`✅ ${data.students.length} students imported!`, 'success');
-                    await loadDashboard();
-                    resolve(true);
-
+                    await db.addStudent(student);
+                    importedCount++;
                 } catch (error) {
-                    console.error('Error importing:', error);
-                    showToast('Error importing backup', 'error');
-                    reject(error);
+                    console.warn('Skipping duplicate student:', student.id);
                 }
-            };
+            }
 
-            reader.onerror = () => {
-                reject(new Error('Failed to read file'));
-            };
+            showToast(`✅ ${importedCount} students imported successfully!`, 'success');
+            await loadDashboard();
+            await loadAllStudents();
+            return true;
 
-            reader.readAsText(file);
-        });
+        } catch (error) {
+            console.error('Error importing:', error);
+            showToast('❌ Error importing backup: ' + error.message, 'error');
+            return false;
+        }
     }
 }
 
