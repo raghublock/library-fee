@@ -1,9 +1,9 @@
 class TelegramBackup {
     constructor() {
         // अपना Telegram Bot Token डालो
-        this.botToken = localStorage.getItem('telegramBotToken') || '8777296653:AAGoje_gzSyBddeDXOHfKEiIAmen2gC8em8';
+        this.botToken = localStorage.getItem('telegramBotToken') || '';
         // अपना Telegram Chat ID डालो  
-        this.chatId = localStorage.getItem('telegramChatId') || '626936565';
+        this.chatId = localStorage.getItem('telegramChatId') || '';
     }
 
     // Telegram settings setup करो
@@ -21,6 +21,7 @@ class TelegramBackup {
         this.chatId = chatId;
 
         showToast('✅ Telegram settings saved!', 'success');
+        checkTelegramStatus();
         return true;
     }
 
@@ -100,6 +101,7 @@ class TelegramBackup {
             this.botToken = '';
             this.chatId = '';
             showToast('✅ Telegram settings cleared', 'success');
+            checkTelegramStatus();
         }
     }
 }
