@@ -9,7 +9,6 @@
 </head>
 <body>
     <div class="wrapper">
-        <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
@@ -41,7 +40,6 @@
             </nav>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
             <header class="top-header">
                 <button class="hamburger" id="hamburger">
@@ -51,7 +49,6 @@
             </header>
 
             <div class="content-wrapper">
-                <!-- Dashboard Tab -->
                 <section id="dashboard" class="tab-content active">
                     <h2>Dashboard</h2>
                     <div class="stats-container">
@@ -90,64 +87,56 @@
                         <div id="pending-list"></div>
                     </div>
 
-                    <!-- Backup & Recovery Section -->
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: var(--border-radius); margin-top: 30px; color: white;">
-                        <h2 style="margin-top: 0; color: white;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: var(--border-radius); margin-top: 20px; color: white;">
+                        <h2 style="margin-top: 0; color: white; font-size: 20px;">
                             <i class="fas fa-shield-alt"></i> Backup & Recovery
                         </h2>
-                        <p style="margin-bottom: 20px; opacity: 0.9;">
-                            Keep your data safe with regular backups to local storage or Telegram
+                        <p style="margin-bottom: 16px; opacity: 0.9; font-size: 12px;">
+                            Keep your data safe with regular backups
                         </p>
 
-                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                            <h3 style="margin-top: 0; color: white;">
-                                <i class="fas fa-database"></i> Local Storage Backup
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                            <h3 style="margin-top: 0; color: white; font-size: 14px;">
+                                <i class="fas fa-database"></i> Local Storage
                             </h3>
-                            <p style="opacity: 0.9; margin-bottom: 16px;">
-                                Download your data as CSV or JSON file to your device
-                            </p>
                             
-                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                                 <button class="btn btn-success" onclick="backup.exportToCSV()">
-                                    <i class="fas fa-file-csv"></i> Export to Excel (CSV)
+                                    <i class="fas fa-file-csv"></i> Excel
                                 </button>
                                 <button class="btn btn-success" onclick="backup.exportToJSON()">
-                                    <i class="fas fa-database"></i> Full Backup (JSON)
+                                    <i class="fas fa-database"></i> Backup
                                 </button>
                                 <button class="btn btn-success" onclick="document.getElementById('import-file').click()">
-                                    <i class="fas fa-upload"></i> Restore Backup
+                                    <i class="fas fa-upload"></i> Restore
                                 </button>
                             </div>
                         </div>
 
-                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px;">
-                            <h3 style="margin-top: 0; color: white;">
-                                <i class="fab fa-telegram"></i> Telegram Backup
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 12px;">
+                            <h3 style="margin-top: 0; color: white; font-size: 14px;">
+                                <i class="fab fa-telegram"></i> Telegram
                             </h3>
-                            <p style="opacity: 0.9; margin-bottom: 16px;">
-                                Send backup to your Telegram account automatically
-                            </p>
 
-                            <div id="telegram-status" style="background: rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
+                            <div id="telegram-status" style="background: rgba(255, 255, 255, 0.15); padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;">
                                 <i class="fas fa-info-circle"></i> <span id="telegram-info">Not configured</span>
                             </div>
 
-                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                                 <button class="btn btn-warning" onclick="telegramBackup.setupTelegram()">
-                                    <i class="fas fa-cog"></i> Configure Telegram
+                                    <i class="fas fa-cog"></i> Setup
                                 </button>
                                 <button class="btn btn-warning" onclick="telegramBackup.sendBackupToTelegram()">
-                                    <i class="fas fa-paper-plane"></i> Send Backup Now
+                                    <i class="fas fa-paper-plane"></i> Send
                                 </button>
                                 <button class="btn btn-danger" onclick="telegramBackup.clearTelegramSettings()">
-                                    <i class="fas fa-trash"></i> Clear Settings
+                                    <i class="fas fa-trash"></i> Clear
                                 </button>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Add Student Tab -->
                 <section id="add-student" class="tab-content">
                     <h2>Add New Student</h2>
                     <div class="form-section">
@@ -207,7 +196,6 @@
                     </div>
                 </section>
 
-                <!-- Students List Tab -->
                 <section id="students-list" class="tab-content">
                     <h2>All Students</h2>
                     <div class="search-bar-wrapper">
@@ -216,7 +204,6 @@
                     <div id="students-container" class="students-grid"></div>
                 </section>
 
-                <!-- Pending Fees Tab -->
                 <section id="pending-fees" class="tab-content">
                     <h2>Pending Fees</h2>
                     <div id="pending-fees-container" class="students-grid"></div>
@@ -225,7 +212,6 @@
         </main>
     </div>
 
-    <!-- Detail Modal -->
     <div id="detail-modal" class="modal">
         <div class="modal-content">
             <button class="modal-close"><i class="fas fa-times"></i></button>
@@ -233,7 +219,6 @@
         </div>
     </div>
 
-    <!-- Fee Modal (Monthly Tracker) -->
     <div id="fee-modal" class="modal">
         <div class="modal-content">
             <button class="modal-close"><i class="fas fa-times"></i></button>
@@ -241,13 +226,10 @@
         </div>
     </div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <!-- Hidden file input for restore -->
     <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleFileImport(event)">
 
-    <!-- Scripts -->
     <script src="js/db.js"></script>
     <script src="js/whatsapp.js"></script>
     <script src="js/backup.js"></script>
@@ -263,7 +245,6 @@
             }
         }
 
-        // Check Telegram status on load
         function checkTelegramStatus() {
             const botToken = localStorage.getItem('telegramBotToken');
             const chatId = localStorage.getItem('telegramChatId');
@@ -273,11 +254,10 @@
                 statusElement.innerHTML = '✅ Telegram is configured and ready to use';
                 statusElement.parentElement.style.background = 'rgba(81, 207, 102, 0.2)';
             } else {
-                statusElement.innerHTML = '⚠️ Click "Configure Telegram" to setup backup';
+                statusElement.innerHTML = '⚠️ Click "Setup" to configure backup';
             }
         }
 
-        // Page load पर check करो
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(checkTelegramStatus, 1500);
         });
