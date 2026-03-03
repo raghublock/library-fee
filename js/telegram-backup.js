@@ -1,12 +1,10 @@
 class TelegramBackup {
     constructor() {
-        // अपना Telegram Bot Token डालो
         this.botToken = localStorage.getItem('telegramBotToken') || '';
-        // अपना Telegram Chat ID डालो  
         this.chatId = localStorage.getItem('telegramChatId') || '';
     }
 
-    // Telegram settings setup करो
+    // Telegram settings setup karo
     setupTelegram() {
         const botToken = prompt('Enter your Telegram Bot Token:\n(Get from @BotFather on Telegram)');
         if (!botToken) return false;
@@ -20,31 +18,38 @@ class TelegramBackup {
         this.botToken = botToken;
         this.chatId = chatId;
 
-        showToast('✅ Telegram settings saved!', 'success');
-        checkTelegramStatus();
+        showToast('✅ Telegram settings saved!');
+        if(typeof checkTelegramStatus === 'function') {
+            checkTelegramStatus();
+        }
         return true;
     }
 
-    // Telegram पर backup भेजो
+    // Telegram par backup bhejo
     async sendBackupToTelegram() {
         try {
             if (!this.botToken || !this.chatId) {
                 const setup = confirm('Telegram settings not configured. Setup now?');
                 if (setup) {
                     this.setupTelegram();
-                    return;
                 }
                 return;
             }
 
-            const students = await db.getAllStudents();
+            // Fallback agar db.js configure nahi hai toh LocalStorage use karega
+            let students = [];
+            if (typeof db !== 'undefined' && db.getAllStudents) {
+                students = await db.getAllStudents();
+            } else {
+                students = JSON.parse(localStorage.getItem('library_students')) || [];
+            }
             
             if (students.length === 0) {
-                showToast('❌ No data to backup', 'error');
+                showToast('❌ No data to backup');
                 return;
             }
 
-            showToast('📤 Sending backup to Telegram...', 'info');
+            showToast('📤 Sending backup to Telegram...');
 
             let message = `📊 *LIBRARY FEE MANAGER BACKUP*\n\n`;
             message += `📅 Date: ${new Date().toLocaleString('en-IN')}\n`;
@@ -52,17 +57,28 @@ class TelegramBackup {
             message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
             for (let student of students) {
-                const totalPaid = (student.feeHistory || []).length * student.feeAmount;
-                const currentMonth = new Date().getMonth() + 1;
-                const currentYear = new Date().getFullYear();
-                const isPaid = await db.isFeePaid(student.id, currentMonth, currentYear);
+                // Agar history nahi hai toh 0 set karega
+                const feeHistory = student.feeHistory || [];
+                const totalPaid = feeHistory.length * (student.feeAmount || student.total || 0);
+                
+                // Status check fallback
+                let isPaid = false;
+                if (typeof db !== 'undefined' && db.isFeePaid) {
+                    const currentMonth = new Date().getMonth() + 1;
+                    const currentYear = new Date().getFullYear();
+                    isPaid = await db.isFeePaid(student.id, currentMonth, currentYear);
+                } else {
+                     // Local storage fallback logic
+                     isPaid = student.due <= 0;
+                }
+
                 const status = isPaid ? '✅ PAID' : '❌ PENDING';
 
                 message += `👤 *${student.name}*\n`;
-                message += `👨 Father: ${student.fatherName}\n`;
-                message += `📱 Mobile: ${student.mobile}\n`;
-                message += `💰 Monthly Fee: ₹${student.feeAmount}\n`;
-                message += `💳 Total Paid: ₹${totalPaid}\n`;
+                if(student.fatherName) message += `👨 Father: ${student.fatherName}\n`;
+                if(student.mobile) message += `📱 Mobile: ${student.mobile}\n`;
+                message += `💰 Monthly Fee: ₹${student.feeAmount || student.total || 0}\n`;
+                message += `💳 Total Paid: ₹${totalPaid || student.paid || 0}\n`;
                 message += `📊 Status: ${status}\n`;
                 message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
             }
@@ -82,28 +98,44 @@ class TelegramBackup {
             const responseData = await response.json();
 
             if (response.ok && responseData.ok) {
-                showToast('✅ Backup sent to Telegram successfully!', 'success');
+                showToast('✅ Backup sent to Telegram successfully!');
             } else {
                 throw new Error(responseData.description || 'Failed to send message');
             }
 
         } catch (error) {
             console.error('Error sending to Telegram:', error);
-            showToast('❌ Error: ' + error.message, 'error');
+            showToast('❌ Error: ' + error.message);
         }
     }
 
-    // Telegram settings को clear करो
+    // Telegram settings ko clear karo
     clearTelegramSettings() {
         if (confirm('Remove Telegram settings?')) {
             localStorage.removeItem('telegramBotToken');
             localStorage.removeItem('telegramChatId');
             this.botToken = '';
             this.chatId = '';
-            showToast('✅ Telegram settings cleared', 'success');
-            checkTelegramStatus();
+            showToast('✅ Telegram settings cleared');
+            if(typeof checkTelegramStatus === 'function') {
+                checkTelegramStatus();
+            }
         }
     }
 }
 
+// Global instance banaya taaki HTML buttons isko call kar sakein
 const telegramBackup = new TelegramBackup();
+
+// HTML Buttons ko global functions se link karna
+function setupTelegram() {
+    telegramBackup.setupTelegram();
+}
+
+function sendBackupToTelegram() {
+    telegramBackup.sendBackupToTelegram();
+}
+
+function clearTelegramSettings() {
+    telegramBackup.clearTelegramSettings();
+}
