@@ -29,8 +29,8 @@ function setupEventListeners() {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             const tabName = this.dataset.tab;
-            window.switchTab(tabName);
-            if(sidebar) sidebar.classList.remove('show');
+            switchTab(tabName);
+            sidebar.classList.remove('show');
         });
     });
 
@@ -55,24 +55,20 @@ function setupEventListeners() {
     // Modal Close
     const modalClose = document.querySelectorAll('.modal-close');
     modalClose.forEach(btn => {
-        btn.addEventListener('click', window.closeModal);
+        btn.addEventListener('click', closeModal);
     });
 
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
         modal.addEventListener('click', function(e) {
             if (e.target === this) {
-                window.closeModal();
+                closeModal();
             }
         });
     });
 }
 
-// ------------------------------------------------------------------
-// IMPORTANT: Attached to 'window' so inline HTML can trigger them
-// ------------------------------------------------------------------
-
-window.switchTab = async function(tabName) {
+async function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
@@ -81,11 +77,8 @@ window.switchTab = async function(tabName) {
         btn.classList.remove('active');
     });
 
-    const tabElement = document.getElementById(tabName);
-    const navElement = document.querySelector(`[data-tab="${tabName}"]`);
-    
-    if (tabElement) tabElement.classList.add('active');
-    if (navElement) navElement.classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 
     if (tabName === 'students-list') {
         await loadAllStudents();
@@ -111,7 +104,7 @@ async function loadDashboard() {
         await loadPendingList();
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        window.showToast('Error loading dashboard', 'error');
+        showToast('Error loading dashboard', 'error');
     }
 }
 
@@ -136,7 +129,7 @@ async function loadPendingList() {
                 </div>
                 <div class="pending-item-right">
                     <div class="pending-item-amount">₹${student.feeAmount}</div>
-                    <button class="btn btn-warning" onclick="sendWhatsAppReminder(${student.id}, event)">
+                    <button class="btn btn-warning" onclick="sendWhatsAppReminder(${student.id})">
                         <i class="fab fa-whatsapp"></i> Send
                     </button>
                 </div>
@@ -152,8 +145,6 @@ async function loadAllStudents() {
         const students = await db.getAllStudents();
         const container = document.getElementById('students-container');
 
-        if (!container) return;
-
         if (students.length === 0) {
             container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">No students found</p>';
             return;
@@ -166,7 +157,7 @@ async function loadAllStudents() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error loading students:', error);
-        window.showToast('Error loading students', 'error');
+        showToast('Error loading students', 'error');
     }
 }
 
@@ -174,8 +165,6 @@ async function loadPendingFees() {
     try {
         const students = await db.getPendingFees();
         const container = document.getElementById('pending-fees-container');
-
-        if (!container) return;
 
         if (students.length === 0) {
             container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">✅ No pending fees!</p>';
@@ -189,7 +178,7 @@ async function loadPendingFees() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error loading pending fees:', error);
-        window.showToast('Error loading pending fees', 'error');
+        showToast('Error loading pending fees', 'error');
     }
 }
 
@@ -199,17 +188,14 @@ async function createStudentCard(student) {
     const currentYear = currentDate.getFullYear();
     const isPaid = await db.isFeePaid(student.id, currentMonth, currentYear);
 
-    // Added a fallback for photo in case the src is empty
-    const photoSrc = student.photo || 'https://via.placeholder.com/150';
-
     return `
         <div class="student-card" onclick="showStudentDetail(${student.id})">
-            <img src="${photoSrc}" alt="${student.name}" class="student-photo">
+            <img src="${student.photo}" alt="${student.name}" class="student-photo">
             <div class="student-info">
                 <h3>${student.name}</h3>
                 <p><i class="fas fa-user"></i> ${student.fatherName}</p>
                 <p><i class="fas fa-phone"></i> ${student.mobile}</p>
-                <p><i class="fas fa-rupee-sign"></i> ₹${student.feeAmount}/month</p>
+                <p><i class="fas fa-rupiah"></i> ₹${student.feeAmount}/month</p>
                 
                 <div class="student-status">
                     <span class="status-badge ${isPaid ? 'status-paid' : 'status-pending'}">
@@ -230,7 +216,7 @@ async function createStudentCard(student) {
     `;
 }
 
-window.showStudentDetail = async function(studentId) {
+async function showStudentDetail(studentId) {
     try {
         const student = await db.getStudent(studentId);
         if (!student) return;
@@ -247,10 +233,8 @@ window.showStudentDetail = async function(studentId) {
             `<li>${f.month}/${f.year} - ₹${f.amount}</li>`
         ).join('') || '<li>No records</li>';
 
-        const photoSrc = student.photo || 'https://via.placeholder.com/150';
-
         modalBody.innerHTML = `
-            <img src="${photoSrc}" alt="${student.name}" class="detail-photo">
+            <img src="${student.photo}" alt="${student.name}" class="detail-photo">
             
             <div class="detail-info">
                 <h2>${student.name}</h2>
@@ -313,11 +297,11 @@ window.showStudentDetail = async function(studentId) {
         modal.classList.add('show');
     } catch (error) {
         console.error('Error showing student detail:', error);
-        window.showToast('Error loading student details', 'error');
+        showToast('Error loading student details', 'error');
     }
 }
 
-window.showFeeModal = async function(studentId, event) {
+async function showFeeModal(studentId, event) {
     if (event) event.stopPropagation();
 
     try {
@@ -331,6 +315,7 @@ window.showFeeModal = async function(studentId, event) {
         const currentYear = currentDate.getFullYear();
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+        // Generate last 12 months
         let monthsHtml = '';
         for (let i = 11; i >= 0; i--) {
             let month = currentDate.getMonth() - i;
@@ -339,7 +324,7 @@ window.showFeeModal = async function(studentId, event) {
                 month += 12;
                 year--;
             }
-            month++; 
+            month++; // Convert to 1-based month
 
             const isPaid = await db.isFeePaid(studentId, month, year);
             const monthName = months[month - 1];
@@ -387,35 +372,34 @@ window.showFeeModal = async function(studentId, event) {
         modal.classList.add('show');
     } catch (error) {
         console.error('Error showing fee modal:', error);
-        window.showToast('Error loading fee tracker', 'error');
+        showToast('Error loading fee tracker', 'error');
     }
 }
 
-window.toggleFeePayment = async function(studentId, month, year, event) {
-    if(event) event.stopPropagation();
+async function toggleFeePayment(studentId, month, year, event) {
+    event.stopPropagation();
     
     try {
         const isPaid = await db.isFeePaid(studentId, month, year);
         
         if (isPaid) {
             await db.markFeeAsUnpaid(studentId, month, year);
-            window.showToast('Fee marked as unpaid', 'info');
+            showToast('Fee marked as unpaid', 'info');
         } else {
             await db.markFeeAsPaid(studentId, month, year);
-            window.showToast('Fee marked as paid', 'success');
+            showToast('Fee marked as paid', 'success');
         }
         
         // Refresh fee modal
-        await window.showFeeModal(studentId, null);
+        await showFeeModal(studentId, null);
         await loadDashboard();
-        await loadAllStudents(); // Ensure main list reflects changes too
     } catch (error) {
         console.error('Error toggling fee payment:', error);
-        window.showToast('Error updating fee', 'error');
+        showToast('Error updating fee', 'error');
     }
 }
 
-window.closeModal = function() {
+function closeModal() {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.classList.remove('show');
     });
@@ -425,46 +409,42 @@ async function handleAddStudent(e) {
     e.preventDefault();
 
     const photoInput = document.getElementById('photo');
-    let photoData = '';
-
-    // Handle photo reading as a Promise to ensure it completes before saving
-    if (photoInput.files && photoInput.files[0]) {
-        photoData = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (event) => resolve(event.target.result);
-            reader.readAsDataURL(photoInput.files[0]);
-        });
+    if (!photoInput.files[0]) {
+        showToast('Please select a photo', 'error');
+        return;
     }
 
-    try {
-        const studentData = {
-            name: document.getElementById('name').value,
-            fatherName: document.getElementById('father-name').value,
-            mobile: document.getElementById('mobile').value,
-            whatsapp: document.getElementById('whatsapp').value,
-            email: document.getElementById('email').value || '',
-            feeAmount: parseInt(document.getElementById('fee-amount').value),
-            photo: photoData, 
-            address: document.getElementById('address').value || '',
-            joiningDate: document.getElementById('joining-date').value,
-            id: Date.now() // Added ID generation to ensure uniqueness
-        };
+    const reader = new FileReader();
 
-        await db.addStudent(studentData);
-        window.showToast('✅ Student added successfully!', 'success');
-        
-        document.getElementById('student-form').reset();
-        const preview = document.getElementById('photo-preview');
-        if(preview) preview.classList.remove('show');
-        
-        setTimeout(async () => {
-            await window.switchTab('students-list');
-            await loadDashboard();
-        }, 800);
-    } catch (error) {
-        console.error('Error adding student:', error);
-        window.showToast('Error adding student', 'error');
-    }
+    reader.onload = async function(event) {
+        try {
+            const studentData = {
+                name: document.getElementById('name').value,
+                fatherName: document.getElementById('father-name').value,
+                mobile: document.getElementById('mobile').value,
+                whatsapp: document.getElementById('whatsapp').value,
+                email: document.getElementById('email').value || '',
+                feeAmount: parseInt(document.getElementById('fee-amount').value),
+                photo: event.target.result,
+                address: document.getElementById('address').value || '',
+                joiningDate: document.getElementById('joining-date').value
+            };
+
+            await db.addStudent(studentData);
+            showToast('✅ Student added successfully!', 'success');
+            document.getElementById('student-form').reset();
+            document.getElementById('photo-preview').classList.remove('show');
+            setTimeout(async () => {
+                await switchTab('students-list');
+                await loadDashboard();
+            }, 800);
+        } catch (error) {
+            console.error('Error adding student:', error);
+            showToast('Error adding student', 'error');
+        }
+    };
+
+    reader.readAsDataURL(photoInput.files[0]);
 }
 
 function previewPhoto(e) {
@@ -473,16 +453,14 @@ function previewPhoto(e) {
         const reader = new FileReader();
         reader.onload = function(event) {
             const preview = document.getElementById('photo-preview');
-            if(preview) {
-                preview.style.backgroundImage = `url(${event.target.result})`;
-                preview.classList.add('show');
-            }
+            preview.style.backgroundImage = `url(${event.target.result})`;
+            preview.classList.add('show');
         };
         reader.readAsDataURL(file);
     }
 }
 
-window.markFeePaid = async function(studentId, event) {
+async function markFeePaid(studentId, event) {
     if (event) event.stopPropagation();
 
     try {
@@ -493,23 +471,18 @@ window.markFeePaid = async function(studentId, event) {
         await db.markFeeAsPaid(studentId, currentMonth, currentYear);
         const student = await db.getStudent(studentId);
 
-        window.showToast(`✅ ${student.name}'s fee marked as paid!`, 'success');
+        showToast(`✅ ${student.name}'s fee marked as paid!`, 'success');
         await loadDashboard();
         await loadAllStudents();
-        window.closeModal();
+        closeModal();
     } catch (error) {
         console.error('Error marking fee as paid:', error);
-        window.showToast('Error updating fee', 'error');
+        showToast('Error updating fee', 'error');
     }
 }
 
-window.sendWhatsAppReminder = function(studentId, event) {
+function sendWhatsAppReminder(studentId, event) {
     if (event) event.stopPropagation();
-
-    if(typeof whatsapp === 'undefined' || !whatsapp.sendFeePaidReminder) {
-         window.showToast('WhatsApp module not loaded correctly!', 'error');
-         return;
-    }
 
     db.getStudent(studentId).then(student => {
         if (!student) return;
@@ -518,44 +491,30 @@ window.sendWhatsAppReminder = function(studentId, event) {
         whatsapp.openWhatsApp(link);
     }).catch(error => {
         console.error('Error sending WhatsApp reminder:', error);
-        window.showToast('Error sending message', 'error');
+        showToast('Error sending message', 'error');
     });
 }
 
-window.deleteStudent = async function(studentId) {
+async function deleteStudent(studentId) {
     if (confirm('क्या आप इस छात्र को हटाना चाहते हैं?')) {
         try {
             await db.deleteStudent(studentId);
-            window.showToast('Student deleted!', 'success');
-            window.closeModal();
+            showToast('Student deleted!', 'success');
+            closeModal();
             await loadAllStudents();
             await loadDashboard();
         } catch (error) {
             console.error('Error deleting student:', error);
-            window.showToast('Error deleting student', 'error');
+            showToast('Error deleting student', 'error');
         }
     }
 }
 
 async function handleSearch(e) {
     try {
-        const query = e.target.value.toLowerCase();
-        
-        // Add a fallback incase db.searchStudents doesn't exist
-        let students = [];
-        if(db.searchStudents) {
-            students = query ? await db.searchStudents(query) : await db.getAllStudents();
-        } else {
-            const allStudents = await db.getAllStudents();
-            students = query ? allStudents.filter(s => 
-                s.name.toLowerCase().includes(query) || 
-                s.mobile.includes(query)
-            ) : allStudents;
-        }
-        
+        const query = e.target.value;
+        const students = query ? await db.searchStudents(query) : await db.getAllStudents();
         const container = document.getElementById('students-container');
-
-        if (!container) return;
 
         if (students.length === 0) {
             container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: #999;">No results found</p>';
@@ -569,24 +528,20 @@ async function handleSearch(e) {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error searching students:', error);
-        window.showToast('Error searching', 'error');
+        showToast('Error searching', 'error');
     }
 }
 
-window.showToast = function(message, type = 'info') {
+function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
-    if(!toast) return;
-
     toast.textContent = message;
     toast.className = `toast show`;
-    
-    // Fallback logic for styling if CSS vars are missing
     if (type === 'error') {
-        toast.style.borderLeft = '4px solid #dc3545';
+        toast.style.borderLeftColor = 'var(--danger)';
     } else if (type === 'success') {
-        toast.style.borderLeft = '4px solid #28a745';
+        toast.style.borderLeftColor = 'var(--success)';
     } else if (type === 'info') {
-        toast.style.borderLeft = '4px solid #0d6efd';
+        toast.style.borderLeftColor = 'var(--primary)';
     }
     
     setTimeout(() => {
